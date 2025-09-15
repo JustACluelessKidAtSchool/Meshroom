@@ -291,7 +291,8 @@ class Attribute(BaseObject):
                 return self._desc.value(self)
             except Exception as exc:
                 if not self.node.isCompatibilityNode:
-                    logging.warning(f"Failed to evaluate 'defaultValue' (node lambda) for attribute '{self.fullName}': {exc}")
+                    logging.warning(f"Failed to evaluate 'defaultValue' (node lambda) for attribute "
+                                    f"'{self.fullName}': {exc}")
                 return None
         # keyable attribute default value
         if self.keyable:
@@ -390,7 +391,8 @@ class Attribute(BaseObject):
             return True
 
         # If the attribute is a File attribute, it is an instance of str and can be iterated over
-        hasSupportedExt = isinstance(self.value, str) and any(ext in self.value for ext in Attribute.VALID_3D_EXTENSIONS)
+        hasSupportedExt = isinstance(self.value, str) and any(ext in self.value for ext
+                                                              in Attribute.VALID_3D_EXTENSIONS)
         if hasSupportedExt:
             return True
 
@@ -496,7 +498,8 @@ class Attribute(BaseObject):
         # Safety check to avoid evaluation errors
         if not self.node.graph or not self.node.graph.edges:
             return False
-        return next((edge for edge in self.node.graph.edges.values() if edge.dst == self), None) is not None
+        return next((edge for edge in self.node.graph.edges.values()
+                     if edge.dst == self), None) is not None
 
     def _hasAnyOutputLinks(self) -> bool:
         """
@@ -505,7 +508,9 @@ class Attribute(BaseObject):
         # Safety check to avoid evaluation errors
         if not self.node.graph or not self.node.graph.edges:
             return False
-        return next((edge for edge in self.node.graph.edges.values() if edge.src == self), None) is not None
+        return next((edge for edge in self.node.graph.edges.values()
+                     if edge.src == self), None) is not None
+
 
     # Slots
 
@@ -527,6 +532,8 @@ class Attribute(BaseObject):
     @Slot(str, result=bool)
     def matchText(self, text: str) -> bool:
         return self.label.lower().find(text.lower()) > -1
+
+    # Properties and signals
 
     # Properties and signals
 
@@ -553,7 +560,8 @@ class Attribute(BaseObject):
     # Whether the attribute is a node output attribute.
     isOutput = Property(bool, lambda self: self._isOutput, constant=True)
     # Whether the attribute is a read-only attribute.
-    isReadOnly = Property(bool, lambda self: not self._isOutput and self.node.isCompatibilityNode, constant=True)
+    isReadOnly = Property(bool, lambda self: not self._isOutput and self.node.isCompatibilityNode,
+                          constant=True)
     # Whether changing this attribute invalidates cached results.
     invalidate = Property(bool, lambda self: self._invalidate, constant=True)
     # Whether this attribute is enabled.
@@ -587,7 +595,8 @@ class Attribute(BaseObject):
     # Whether the attribute is a link to another attribute.
     isLink = Property(bool, _isLink, notify=inputLinksChanged)
     # The upstream connected root attribute.
-    inputRootLink = Property(Variant, lambda self: self._getInputLink(recursive=True), notify=inputLinksChanged)
+    inputRootLink = Property(Variant, lambda self: self._getInputLink(recursive=True),
+                             notify=inputLinksChanged)
     # The upstream connected attribute.
     inputLink = Property(BaseObject, _getInputLink, notify=inputLinksChanged)
     # The list of downstream connected attributes.
@@ -855,7 +864,8 @@ class ListAttribute(Attribute):
         # Safety check to avoid evaluation errors
         if not self.node.graph or not self.node.graph.edges:
             return []
-        return [edge.src for edge in self.node.graph.edges.values() if edge.dst == self or edge.dst in self._value]
+        return [edge.src for edge in self.node.graph.edges.values()
+                if edge.dst == self or edge.dst in self._value]
 
     # Override
     def _getAllOutputLinks(self) -> list[Attribute]:
@@ -865,7 +875,8 @@ class ListAttribute(Attribute):
         # Safety check to avoid evaluation errors
         if not self.node.graph or not self.node.graph.edges:
             return []
-        return [edge.dst for edge in self.node.graph.edges.values() if edge.src == self or edge.src in self._value]
+        return [edge.dst for edge in self.node.graph.edges.values()
+                if edge.src == self or edge.src in self._value]
 
     # Override
     def _hasAnyInputLinks(self) -> bool:
@@ -873,7 +884,8 @@ class ListAttribute(Attribute):
         Whether the attribute or any of its elements is a link to another attribute.
         """
         return super()._hasAnyInputLinks() or \
-               any(attribute.hasAnyInputLinks for attribute in self._value if hasattr(attribute, 'hasAnyInputLinks'))
+               any(attribute.hasAnyInputLinks for attribute in self._value
+                   if hasattr(attribute, 'hasAnyInputLinks'))
 
     # Override
     def _hasAnyOutputLinks(self) -> bool:
@@ -881,7 +893,8 @@ class ListAttribute(Attribute):
         Whether the attribute or any of its elements is linked by another attribute.
         """
         return super()._hasAnyOutputLinks() or \
-               any(attribute.hasAnyOutputLinks for attribute in self._value if hasattr(attribute, 'hasAnyOutputLinks'))
+               any(attribute.hasAnyOutputLinks for attribute in self._value
+                   if hasattr(attribute, 'hasAnyOutputLinks'))
 
     # Override value property setter
     value = Property(Variant, Attribute._getValue, _setValue, notify=Attribute.valueChanged)
@@ -964,9 +977,10 @@ class GroupAttribute(Attribute):
     # Override
     def getPrimitiveValue(self, exportDefault=True):
         if exportDefault:
-            return {name: attr.getPrimitiveValue(exportDefault=exportDefault) for name, attr in self._value.items()}
-        return {name: attr.getPrimitiveValue(exportDefault=exportDefault) for name, attr in self._value.items()
-                if not attr.isDefault}
+            return {name: attr.getPrimitiveValue(exportDefault=exportDefault)
+                    for name, attr in self._value.items()}
+        return {name: attr.getPrimitiveValue(exportDefault=exportDefault)
+                for name, attr in self._value.items() if not attr.isDefault}
 
     # Override
     def getValueStr(self, withQuotes=True):
@@ -1014,7 +1028,7 @@ class GroupAttribute(Attribute):
             return super().uid()
 
         uids = []
-        for k, v in self._value.items():
+        for _, v in self._value.items():
             if v.enabled and v.invalidate:
                 uids.append(v.uid())
         return hashValue(uids)
