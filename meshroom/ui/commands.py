@@ -5,8 +5,8 @@ from contextlib import contextmanager
 from PySide6.QtGui import QUndoCommand, QUndoStack
 from PySide6.QtCore import Property, Signal
 
-from meshroom.core.attribute import ListAttribute, Attribute
-from meshroom.core.exception import CyclicDependencyError
+from meshroom.core.attribute import ListAttribute, Attribute, GroupAttribute
+from meshroom.core.exception import CyclicDependencyError, InvalidEdgeError
 from meshroom.core.graph import Graph, GraphModification
 from meshroom.core.node import Position, CompatibilityIssue
 from meshroom.core.nodeFactory import nodeFactory
@@ -423,43 +423,106 @@ class RemoveObservationCommand(GraphCommand):
             self.graph.internalAttribute(self.attrName).geometry.setObservation(self.key, self.oldObservation)
         return True
 
-class AddEdgeCommand(GraphCommand):
+class EdgeCommand(GraphCommand):
+    """
+    Handle all the undo/redo operations on the values and expressions for the nodes that are
+    connected through the edge.
+    """
+
+    class StoredAttribute():
+        """
+        Dataclass to store the given attribute. This prevents un/serializing useless data.
+        """
+        def __init__(self, attribute: Attribute):
+            self.fullName = attribute.fullName
+            self.value = attribute.getSerializedValue()
+            self.isGroup = isinstance(attribute, GroupAttribute)
+            self.linkParam = attribute.inputLink.fullName if attribute.isLink else None
+
     def __init__(self, graph, src, dst, parent=None):
         super().__init__(graph, parent)
+
         self.srcAttr = src.fullName
         self.dstAttr = dst.fullName
+        self._srcNodeAttributesStates: list[self.StoredAttribute] = []
+        self._dstNodeAttributesStates: list[self.StoredAttribute] = []
+
+    def _getSrcAttribute(self) -> Attribute:
+        return self.graph.attribute(self.srcAttr)
+
+    def _getDstAttribute(self) -> Attribute:
+        return self.graph.attribute(self.dstAttr)
+
+    def _storeNodeAttributesTo(self, node, storedList, filteringPredicate=None):
+        for currentSrcAttribute in node.getAttributes():
+            if filteringPredicate and filteringPredicate(currentSrcAttribute) == False:
+                continue
+            storedList.append(self.StoredAttribute(currentSrcAttribute))
+            if isinstance(currentSrcAttribute, GroupAttribute):
+                for nestedAttribute in currentSrcAttribute.flatStaticChildren:
+                    storedList.append(self.StoredAttribute(nestedAttribute))
+
+    def _storeAttributes(self):
+        self._storeNodeAttributesTo(self._getSrcAttribute().node,
+                                    self._srcNodeAttributesStates,
+                                    lambda attr: not attr.isInput)
+        self._storeNodeAttributesTo(self._getDstAttribute().node,
+                                    self._dstNodeAttributesStates,
+                                    lambda attr: attr.isInput)
+
+    def _applyStoredAttributes(self):
+        srcNode = self._getSrcAttribute().node
+        dstNode = self._getDstAttribute().node
+
+        if not (graph := srcNode.graph) or not dstNode.graph:
+            return
+
+        attributesWithGroupAtEnd = sorted(self._srcNodeAttributesStates + self._dstNodeAttributesStates,
+                                          key=lambda storedAttribute: storedAttribute.isGroup)
+
+        # Groups are connected at the end to prevent side effects on connectAttributes()
+        for storedAttribute in attributesWithGroupAtEnd:
+            attribute = graph.attribute(storedAttribute.fullName)
+            graph.removeEdge(attribute)
+            attribute.value = storedAttribute.value
+
+            if storedAttribute.linkParam:
+                graph.addEdge(graph.attribute(storedAttribute.linkParam), attribute)
+
+    def redoImpl(self):
+        self._storeAttributes()
+
+    def undoImpl(self):
+        self._applyStoredAttributes()
+
+
+class AddEdgeCommand(EdgeCommand):
+    def __init__(self, graph, src, dst, parent=None):
+        super().__init__(graph, src, dst, parent)
         self.setText(f"Connect '{self.srcAttr}'->'{self.dstAttr}'")
 
         if not dst.validateIncomingConnection(src):
-            raise ValueError(f"Attribute types are not compatible and cannot be connected: "
-                             f"'{self.srcAttr}'({src.baseType})->'{self.dstAttr}'({dst.baseType})")
+            raise InvalidEdgeError(src.fullName, dst.fullName,
+                                   "Attributes are not compatible.")
+
 
     def redoImpl(self):
-        try:
-            self.graph.addEdge(self.graph.attribute(self.srcAttr),
-                               self.graph.attribute(self.dstAttr))
-        except CyclicDependencyError:
-            self.graph.removeEdge(self.graph.attribute(self.dstAttr))
+        super().redoImpl()
+        self._getSrcAttribute().connectTo(self._getDstAttribute())
         return True
 
-    def undoImpl(self):
-        self.graph.removeEdge(self.graph.attribute(self.dstAttr))
 
 
-class RemoveEdgeCommand(GraphCommand):
+class RemoveEdgeCommand(EdgeCommand):
     def __init__(self, graph, edge, parent=None):
-        super().__init__(graph, parent)
-        self.srcAttr = edge.src.fullName
-        self.dstAttr = edge.dst.fullName
+        super().__init__(graph, edge.src, edge.dst, parent)
         self.setText(f"Disconnect '{self.srcAttr}'->'{self.dstAttr}'")
 
     def redoImpl(self):
-        self.graph.removeEdge(self.graph.attribute(self.dstAttr))
+        super().redoImpl()
+        self._getDstAttribute().disconnectEdge()
         return True
 
-    def undoImpl(self):
-        self.graph.addEdge(self.graph.attribute(self.srcAttr),
-                           self.graph.attribute(self.dstAttr))
 
 
 class ListAttributeAppendCommand(GraphCommand):
