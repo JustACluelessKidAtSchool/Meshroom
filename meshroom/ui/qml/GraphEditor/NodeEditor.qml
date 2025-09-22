@@ -401,6 +401,14 @@ Panel {
                             onAttributeDoubleClicked: function(mouse, attribute) { root.attributeDoubleClicked(mouse, attribute) }
                             onUpgradeRequest: root.upgradeRequest()
                             filterText: searchBar.text
+
+                            onInAttributeClicked: function(srcItem, mouse, inAttributes) {
+                                root.inAttributeClicked(srcItem, mouse, inAttributes)
+                            }
+
+                            onOutAttributeClicked: function(srcItem, mouse, outAttributes) {
+                                root.outAttributeClicked(srcItem, mouse, outAttributes)
+                            }
                         }
                     }
                 }
