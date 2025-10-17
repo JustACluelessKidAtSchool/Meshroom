@@ -162,7 +162,7 @@ class BaseNode(object):
 
     def executeChunkCommandLine(self, chunk, cmd, env=None):
         try:
-            with open(chunk.logFile, 'w') as logF:
+            with open(chunk.getLogFile(), 'w') as logF:
                 chunk.status.commandLine = cmd
                 chunk.saveStatusFile()
                 cmdList = shlex.split(cmd)
@@ -171,7 +171,7 @@ class BaseNode(object):
 
                 print(f"Starting Process for '{chunk.node.name}'")
                 print(f" - commandLine: {cmd}")
-                print(f" - logFile: {chunk.logFile}")
+                print(f" - logFile: {chunk.getLogFile()}")
                 if prog:
                     cmdList[0] = Path(prog).as_posix()
                     print(f" - command full path: {cmdList[0]}")
@@ -216,7 +216,7 @@ class BaseNode(object):
                         pass
 
             if chunk.subprocess.returncode != 0:
-                with open(chunk.logFile, "r") as logF:
+                with open(chunk.getLogFile(), "r") as logF:
                     logContent = "".join(logF.readlines())
                 raise RuntimeError(f'Error on node "{chunk.name}":\nLog:\n{logContent}')
         finally:
