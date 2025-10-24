@@ -526,7 +526,6 @@ class TaskManager(BaseObject):
             node.destroyed.connect(lambda obj=None, name=node.name: self.onNodeDestroyed(obj, name))
             node.initStatusOnSubmit()
 
-        print("[TaskManager] (submit) graph.updateMonitoredFiles")
         graph.updateMonitoredFiles()
             
         flowEdges = graph.flowEdges(startNodes=toNodes)
