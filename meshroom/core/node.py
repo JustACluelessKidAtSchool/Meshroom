@@ -326,7 +326,7 @@ class ChunkStatusData(BaseObject):
     @property
     def elapsedTimeStr(self):
         return str(datetime.timedelta(seconds=self.elapsedTime))
-    
+
     def toDict(self):
         keys = list(self.__slots__) or []
         d = {key:getattr(self, key) for key in keys}
@@ -2600,6 +2600,3 @@ class CompatibilityNode(BaseNode):
     compatibilityIssue = Property(int, lambda self: self.issue.value, constant=True)
     canUpgrade = Property(bool, canUpgrade.fget, constant=True)
     issueDetails = Property(str, issueDetails.fget, constant=True)
-
-    issueDetails = Property(str, issueDetails.fget, constant=True)
-
