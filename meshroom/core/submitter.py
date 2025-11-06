@@ -10,6 +10,10 @@ from itertools import accumulate
 
 import meshroom
 from meshroom.common import BaseObject, Property
+import logging
+
+logger = logging.getLogger("Submitter")
+logger.setLevel(logging.INFO)
 
 
 logger = logging.getLogger("Submitter")
