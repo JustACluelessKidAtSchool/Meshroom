@@ -12,6 +12,7 @@ import GraphEditor 1.0
 import MaterialIcons 2.2
 import Utils 1.0
 import Controls 1.0
+import Dialogs 1.0
 
 Page {
     id: root
@@ -172,6 +173,32 @@ Page {
             _callback = callback
             open()
         }
+    }
+
+    MrFileDialog {
+        id: newSaveFileDialog
+        saveMode: true
+        nameFilters: ["*"]
+        property string fileToSave: ""
+
+        onFileSelected: (path) => {
+            fileToSave = path.toString().replace("file://", "")
+            // Do something with the file path
+        }
+        
+        onAccepted: {
+            if (!validateFilepathForSave(fileToSave, newSaveFileDialog))
+            {
+                return;
+            }
+
+            // Only save a valid file
+            _reconstruction.saveAs("file://" + fileToSave)
+            MeshroomApp.addRecentProjectFile(fileToSave.toString())
+        }
+        // onRejected: {
+        //     console.log("File not saved")
+        // }
     }
 
     Platform.FileDialog {
@@ -773,6 +800,14 @@ Page {
                     onTriggered: {
                         initFileDialogFolder(saveFileDialog)
                         saveFileDialog.open()
+                    }
+                }
+                Action {
+                    id: newSaveAsAction
+                    text: "New Save As..."
+                    onTriggered: {
+                        initFileDialogFolder(saveFileDialog)
+                        newSaveFileDialog.open()
                     }
                 }
                 MenuSeparator { }
